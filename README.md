@@ -10,6 +10,7 @@ This is an implementation of Redlock, the [distributed locking mechanism](http:/
 - Lock extending
 - Async runtime support (async-std and tokio)
 - Async redis
+- Support for both standalone Redis and Redis Cluster
 
 ## Install
 
@@ -45,8 +46,15 @@ async fn main() {
         "redis://127.0.0.1:6382/",
     ];
 
-    // Initialize the LockManager using `new`
+    // Initialize the LockManager using `new` for standalone Redis
     let rl = LockManager::new(uris);
+
+    // For Redis Cluster, use:
+    // let cluster_uris = vec![
+    //     vec!["redis://127.0.0.1:7000/", "redis://127.0.0.1:7001/"],
+    //     vec!["redis://127.0.0.1:7002/", "redis://127.0.0.1:7003/"],
+    // ];
+    // let rl = LockManager::new_cluster(cluster_uris)?;
 
     // Acquire a lock
     let lock = loop {
@@ -73,6 +81,11 @@ async fn main() {
 }
 ```
 
+## Locking Behavior
+
+- **Single cluster**: Simple Redis lock (non-distributed, no quorum)
+- **Multiple clusters**: Distributed Redlock (quorum-based, N≥3)
+
 ## Extending Locks
 
 Extending a lock effectively renews its duration instead of adding extra time to it. For instance, if a 1000ms lock is extended by 1000ms after 500ms pass, it will only last for a total of 1500ms, not 2000ms. This approach is consistent with the [Node.js Redlock implementation](https://www.npmjs.com/package/redlock). See the [extend script](https://github.com/hexcowboy/rslock/blob/main/src/lock.rs#L22-L30).
@@ -87,7 +100,9 @@ cargo test --all-features
 
 ## Examples
 
-Start the redis servers mentioned in the example code:
+### Basic Examples
+
+Start the redis servers:
 
 ```bash
 docker compose -f examples/docker-compose.yml up -d
@@ -105,6 +120,15 @@ Stop the redis servers:
 
 ```bash
 docker compose -f examples/docker-compose.yml down
+```
+
+### Cluster Examples
+
+Test single-cluster (simple lock) and multi-cluster (Redlock) behavior:
+
+```bash
+# Executes both single and multi-cluster examples
+docker compose -f examples/docker-compose-cluster.yml up --build
 ```
 
 ## Contribute
